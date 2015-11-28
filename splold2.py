@@ -17,7 +17,7 @@ board_preference = np.array([
 #    A  B  C  D  E  F  G  H
 
 def _str():
-    return "splold"
+    return "splold2"
 
 class Move(object):
     def __init__(self, move, board, score=None):
@@ -63,20 +63,40 @@ class Move(object):
         if self.move:
             board.pop()
 
-    def best(self, player=True):
+    def prop(self, player=True):
         if self.depth == 0:
             return (self.score, None)
 
+        if len(self.subtree) == 0:
+            return (self.score, None)
+
         mult = player * 2 - 1
-        best_score = -100000
+        best_score = -1000000000
         best_move = None
         for move in self.subtree:
-            score, _ = move.best(player=(player == False))
+            score, _ = move.prop(player=(player==False))
             if score * mult > best_score:
                 best_score = score * mult
                 best_move = move.move
 
+        # Normal score -10000 <-> 10000
+        self.score = best_score * mult
         return (best_score * mult, best_move)
+
+    def prune(self, player=True, keep=3):
+        if self.depth == 0:
+            return
+
+        l = len(self.subtree)
+        mvs = sorted([(m.score, m) for m in self.subtree])
+
+        if player:
+            self.subtree = [m for _, m in mvs[-keep:]]
+        else:
+            self.subtree = [m for _, m in mvs[:keep]]
+
+        for m in self.subtree:
+            m.prune(player=(player==False))
 
 
     # We have to go deeper!
@@ -102,17 +122,17 @@ class Move(object):
                 print board
 
             mult = board.turn * 2 - 1
-            if len(board.legal_moves) == 0:
-                print "LELELLE"
+            if board.is_checkmate():
                 self.subtree.append(Move(None, board, score=-mult *
                     100000))
-            for move in board.legal_moves:
-                self.subtree.append(Move(move, board))
+            elif board.is_game_over():
+                self.subtree.append(Move(None, board, score=0))
+            else:
+                for move in board.legal_moves:
+                    self.subtree.append(Move(move, board))
 
             if debug:
                 print "Appended {} things".format(len(self.subtree))
-
-            self.depth += 1
 
         else:
             for move in self.subtree:
@@ -178,15 +198,19 @@ def best_move(board, depth=1):
 
     move = Move(None, board)
     move.deeper(board)
+    move.prop(player=board.turn)
+    move.prune(board.turn, keep=20)
+    move.deeper(board)
+    move.prop(player=board.turn)
+    move.prune(board.turn, keep=8)
+    move.deeper(board)
+    move.prop(player=board.turn)
+    move.prune(board.turn, keep=5)
     move.deeper(board)
 
-    bscore, bmove = move.best(player=board.turn)
+    bscore, bmove = move.prop(player=board.turn)
     print "BEST move {}, score {}".format(bmove, bscore)
 
-    #moves = sorted([(m.score, m.move) for m in move.subtree])
-
-    #print moves
-    #print "Best move {}".format(moves[-1][1])
     return bscore, bmove
 
 def get_move(board):

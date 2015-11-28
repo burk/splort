@@ -16,6 +16,9 @@ board_preference = np.array([
     ]).flatten()
 #    A  B  C  D  E  F  G  H
 
+def _str():
+    return "splort"
+
 class Move(object):
     def __init__(self, move, board, score=None):
         self.move = move
@@ -31,7 +34,7 @@ class Move(object):
         if self.move:
             board.pop()
 
-        self.score += np.random.normal(0, max(self.score/10.0, 0.001))
+        #self.score += np.random.normal(0, max(self.score/10.0, 0.001))
         # Depth of subtree
         self.depth = 0
         self.subtree = []
@@ -60,20 +63,43 @@ class Move(object):
         if self.move:
             board.pop()
 
-    def best(self, player=True):
+    def prop(self, player=True):
         if self.depth == 0:
             return (self.score, None)
 
+        if len(self.subtree) == 0:
+            return (self.score, None)
+
         mult = player * 2 - 1
-        best_score = -100000
+        best_score = -1000000000
         best_move = None
         for move in self.subtree:
-            score, _ = move.best(player=(player == False))
+            score, _ = move.prop(player=(player==False))
             if score * mult > best_score:
                 best_score = score * mult
                 best_move = move.move
 
-        return (best_score * mult, best_move)
+        # Normal score -10000 <-> 10000
+        # High alpha => more agressive?
+        alpha = 0.5 / self.depth
+        self.score = alpha * self.score + (1-alpha) * best_score * mult
+        return (self.score, best_move)
+        #return (best_score * mult, best_move)
+
+    def prune(self, player=True, keep=3):
+        if self.depth == 0:
+            return
+
+        l = len(self.subtree)
+        mvs = sorted([(m.score, m) for m in self.subtree])
+
+        if player:
+            self.subtree = [m for _, m in mvs[-keep:]]
+        else:
+            self.subtree = [m for _, m in mvs[:keep]]
+
+        for m in self.subtree:
+            m.prune(player=(player==False), keep=max(2, keep/4))
 
 
     # We have to go deeper!
@@ -102,13 +128,14 @@ class Move(object):
             if board.is_checkmate():
                 self.subtree.append(Move(None, board, score=-mult *
                     100000))
-            for move in board.legal_moves:
-                self.subtree.append(Move(move, board))
+            elif board.is_game_over():
+                self.subtree.append(Move(None, board, score=0))
+            else:
+                for move in board.legal_moves:
+                    self.subtree.append(Move(move, board))
 
             if debug:
                 print "Appended {} things".format(len(self.subtree))
-
-            self.depth += 1
 
         else:
             for move in self.subtree:
@@ -135,60 +162,74 @@ piece_types = [chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK,
 piece_score = { chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3,
         chess.ROOK: 5, chess.QUEEN: 9 }
     
-def material_score(b):
+def material_score(b, beta=0.01):
     score = 0
     for t, squares in [(t, b.pieces(t, True)) for t in piece_types]:
         if t == chess.KING:
             continue
         for sq in squares:
-            score += piece_score[t]
+            score += piece_score[t] + beta * board_preference[sq]
     for t, squares in [(t, b.pieces(t, False)) for t in piece_types]:
         if t == chess.KING:
             continue
         for sq in squares:
-            score -= piece_score[t]
+            score -= piece_score[t] - beta * board_preference[sq]
     return score
 
-def position_score(b, other=False):
-    score = 0
-    if other:
-        who = not b.turn
-    else:
-        who = b.turn
-    for t, squares in [(t, b.pieces(t, who)) for t in piece_types]:
-        if t == chess.KING:
-            continue
+def pin_attack_score(b):
+    pin = 0
+    att = 0
+    for sq in xrange(64):
+        # If things are pinned to white => lower score
+        if b.is_pinned(True, sq):
+            pin -= 1
+        if b.is_pinned(False, sq):
+            pin += 1
+        if b.piece_at(sq):
+            if b.is_attacked_by(True, sq):
+                att += board_preference[sq]
+            if b.is_attacked_by(False, sq):
+                att -= board_preference[sq]
+    return (pin, att)
 
-        for sq in squares:
-            score += board_preference[sq]
-    return score
+def board_score(b):
+    mat = material_score(b, 0.01)
+    pin, attack = pin_attack_score(b)
 
-def board_score(board):
-    mat_score = material_score(board)
-    pos_score = position_score(board) - position_score(board,
-            other=True)
-
-    return mat_score #- 0.1 * pos_score
+    return mat \
+            + 0.01 / (np.sqrt(b.fullmove_number)) * pin \
+            + 0.1 / (np.sqrt(b.fullmove_number)) * attack
 
 def best_move(board, depth=1):
 
     move = Move(None, board)
-    move.deeper(board)
-    move.deeper(board)
 
+    move.deeper(board)
     move.prop(player=board.turn)
-    bscore, bmove = move.best(player=board.turn)
-    print "BEST move {}, score {}".format(bmove, bscore)
+    move.prune(board.turn, keep=16)
 
-    #moves = sorted([(m.score, m.move) for m in move.subtree])
+    move.deeper(board)
+    move.prop(player=board.turn)
+    move.prune(board.turn, keep=8)
 
-    #print moves
-    #print "Best move {}".format(moves[-1][1])
+    move.deeper(board)
+    move.prop(player=board.turn)
+    move.prune(board.turn, keep=4)
+
+    move.deeper(board)
+    move.prop(player=board.turn)
+    move.prune(board.turn, keep=4)
+
+    move.deeper(board)
+
+    bscore, bmove = move.prop(player=board.turn)
+    print "SPLORT BEST move {}, score {}".format(bmove, bscore)
+
     return bscore, bmove
 
 def get_move(board):
 
     score, move = best_move(board)
 
-    return move
+    return move, score
 
