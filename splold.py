@@ -99,7 +99,8 @@ class Move(object):
                 print board
 
             mult = board.turn * 2 - 1
-            if board.is_checkmate():
+            if len(board.legal_moves) == 0:
+                print "LELELLE"
                 self.subtree.append(Move(None, board, score=-mult *
                     100000))
             for move in board.legal_moves:
@@ -176,7 +177,6 @@ def best_move(board, depth=1):
     move.deeper(board)
     move.deeper(board)
 
-    move.prop(player=board.turn)
     bscore, bmove = move.best(player=board.turn)
     print "BEST move {}, score {}".format(bmove, bscore)
 
