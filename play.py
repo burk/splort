@@ -4,13 +4,21 @@ import splold
 import splold2
 import random_player
 import matplotlib.pyplot as plt
+import numpy as np
 
-def play():
+def play(stats):
 
     board = chess.Board()
 
-    black = splort
-    white = splold2
+    bparms = [np.random.normal(0.01, 0.01), np.random.normal(0.01,
+        0.01), np.random.normal(0.1, 0.1), np.random.normal(0.5, 0.5)]
+    wparms = [np.random.normal(0.01, 0.001), np.random.normal(0.01,
+        0.001), np.random.normal(0.1, 0.01), np.random.normal(0.5, 0.1)]
+    black = splort.Player(beta=bparms[0], pin=bparms[1],
+            attack=bparms[2], aggro=bparms[3])
+    white = splort.Player(beta=wparms[0], pin=wparms[1],
+            attack=wparms[2], aggro=wparms[3])
+    #white = splold2
 
     black_score = []
     white_score = []
@@ -51,24 +59,35 @@ def play():
 
     if board.is_checkmate():
         if board.turn:
-            print "Black ({}) wins!".format(black._str())
+            print "Black ({}) wins!".format(black)
             text_file = open("eval", "w")
-            text_file.write("Black ({}) wins!".format(black._str()))
+            text_file.write("Black ({}) wins!".format(black))
             text_file.close()
+            stats.write(", ".join(map(str,bparms)) + ", 1\n")
+            stats.write(", ".join(map(str,wparms)) + ", 0\n")
         else:
-            print "White ({}) wins!".format(white._str())
+            print "White ({}) wins!".format(white)
             text_file = open("eval", "w")
-            text_file.write("White ({}) wins!".format(black._str()))
+            text_file.write("White ({}) wins!".format(white))
             text_file.close()
+            stats.write(", ".join(map(str,bparms)) + ", 0\n")
+            stats.write(", ".join(map(str,wparms)) + ", 1\n")
+    else:
+        stats.write(", ".join(map(str,bparms)) + ", 0.5\n")
+        stats.write(", ".join(map(str,wparms)) + ", 0.5\n")
 
-    plt.figure(1)
-    plt.plot(white_score)
-    plt.plot(black_score)
-    plt.ylim([-30, 30])
-    plt.show()
+    stats.flush()
+
+    #plt.figure(1)
+    #plt.plot(white_score)
+    #plt.plot(black_score)
+    #plt.ylim([-30, 30])
+    #plt.show()
 
     return board.turn
 
 if __name__ == "__main__":
-    play()
+    stats = open("stats", "a+", 0)
+    for i in xrange(20):
+        play(stats)
 
