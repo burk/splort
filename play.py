@@ -5,19 +5,21 @@ import splold2
 import random_player
 import matplotlib.pyplot as plt
 import numpy as np
+import mr_final
 
 def play(stats):
 
     board = chess.Board()
 
-    bparms = [np.random.normal(0.01, 0.01), np.random.normal(0.01,
-        0.01), np.random.normal(0.1, 0.1), np.random.normal(0.5, 0.5)]
-    wparms = [np.random.normal(0.01, 0.001), np.random.normal(0.01,
-        0.001), np.random.normal(0.1, 0.01), np.random.normal(0.5, 0.1)]
-    black = splort.Player(beta=bparms[0], pin=bparms[1],
-            attack=bparms[2], aggro=bparms[3])
+    #bparms = [np.random.normal(0.01, 0.01), np.random.normal(0.01,
+    #    0.01), np.random.normal(0.3, 0.1), np.random.normal(0.8, 0.2)]
+    wparms = [np.random.normal(0.001, 0.001), np.random.normal(0.001,
+        0.001), np.random.normal(0.2, 0.01), np.random.normal(0.3, 0.1)]
+    #black = splort.Player(beta=bparms[0], pin=bparms[1],
+    #        attack=bparms[2], aggro=bparms[3])
     white = splort.Player(beta=wparms[0], pin=wparms[1],
             attack=wparms[2], aggro=wparms[3])
+    black = mr_final
     #white = splold2
 
     black_score = []
@@ -31,7 +33,8 @@ def play(stats):
             board.push(move)
             white_score.append(score)
         else:
-            move, score = black.get_move(board)
+            move = black.move(board)
+            score = 1
             board.push(move)
             black_score.append(score)
 
@@ -78,11 +81,11 @@ def play(stats):
 
     stats.flush()
 
-    #plt.figure(1)
-    #plt.plot(white_score)
-    #plt.plot(black_score)
-    #plt.ylim([-30, 30])
-    #plt.show()
+    plt.figure(1)
+    plt.plot(white_score)
+    plt.plot(black_score)
+    plt.ylim([-30, 30])
+    plt.show()
 
     return board.turn
 

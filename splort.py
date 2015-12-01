@@ -18,7 +18,7 @@ class Move(object):
         if self.move:
             board.pop()
 
-        #self.score += np.random.normal(0, max(self.score/10.0, 0.001))
+        self.score += np.random.normal(0, 0.01)
         # Depth of subtree
         self.depth = 0
         self.subtree = []
@@ -30,19 +30,20 @@ class Move(object):
     
         return ret
     
-    def print_greedy_line(self, board, move=1):
-        print "Move {}: {}".format(move, self.move)
+    def print_greedy_line(self, board, mnum=1):
+        print "Move {}: {} ({})".format(mnum, self.move, self.score)
         if self.move:
             board.push(self.move)
-        print board
-        best_score = None
+
+        best_score = -10000000000000
+        mult = board.turn * 2 - 1
         for move in self.subtree:
-            if move.score > best_score:
-                best_score = move.score
+            if move.score * mult > best_score:
+                best_score = move.score * mult
                 best_move = move
     
-        if best_score:
-            best_move.print_greedy_line(board, move=2)
+        if best_score > -10000000000:
+            best_move.print_greedy_line(board, mnum=mnum+1)
     
         if self.move:
             board.pop()
@@ -66,7 +67,10 @@ class Move(object):
         # Normal score -10000 <-> 10000
         # High alpha => more agressive?
         alpha = self.p.aggro / self.depth
-        self.score = alpha * self.score + (1-alpha) * best_score * mult
+        if player == self.p.color:
+            self.score = alpha * self.score + (1-alpha) * best_score * mult
+        else:
+            self.score = best_score * mult
         return (self.score, best_move)
         #return (best_score * mult, best_move)
     
@@ -120,7 +124,6 @@ class Player(object):
     def __init__(self, beta=0.01, pin=0.01, attack=0.1, aggro=0.5):
         self.debug = False
         self.beta = beta
-        self.pin_par = pin
         self.attack_par = attack
         self.aggro = aggro
         self.piece_move_par = 0.005
@@ -168,25 +171,18 @@ class Player(object):
                     score -= self.beta * self.board_preference[sq]
         return score
     
-    def pin_attack_score(self, b):
-        pin = 0
+    def attack_score(self, b):
         att = 0
         for sq in xrange(64):
-            # If things are pinned to white => lower score
-            if b.is_pinned(True, sq):
-                pin -= 1
-            if b.is_pinned(False, sq):
-                pin += 1
-            if b.piece_at(sq):
-                if b.is_attacked_by(True, sq):
-                    att += self.board_preference[sq]
-                if b.is_attacked_by(False, sq):
-                    att -= self.board_preference[sq]
-        return (pin, att)
+            if b.is_attacked_by(True, sq):
+                att += self.board_preference[sq]
+            if b.is_attacked_by(False, sq):
+                att -= self.board_preference[sq]
+        return att
     
     def board_score(self, b):
         mat = self.material_score(b, self.beta)
-        pin, attack = self.pin_attack_score(b)
+        attack = self.attack_score(b)
         if b.fullmove_number > 1:
             piece = b.piece_at(b.peek().to_square)
             if piece:
@@ -197,7 +193,6 @@ class Player(object):
             pscore = 0
     
         return mat \
-                + self.pin_par * pin \
                 + self.attack_par * attack \
                 + self.piece_move_par * pscore \
                 * np.sqrt(b.fullmove_number) \
@@ -205,34 +200,30 @@ class Player(object):
 
     
     def best_move(self, board):
+        self.color = board.turn
     
         move = Move(self, None, board)
     
         move.deeper(board)
+        move.deeper(board)
         move.prop(player=board.turn)
-        move.prune(board.turn, keep=32)
+        move.prune(board.turn, keep=8)
     
         move.deeper(board)
         move.prop(player=board.turn)
-        move.prune(board.turn, keep=4)
-    
-        move.deeper(board)
-        move.prop(player=board.turn)
-        move.prune(board.turn, keep=4)
+        move.prune(board.turn, keep=2)
     
         if board.fullmove_number > 50:
             move.deeper(board)
-            move.prop(player=board.turn)
-            move.prune(board.turn, keep=4)
-    
             move.deeper(board)
             move.prop(player=board.turn)
-            move.prune(board.turn, keep=4)
+            move.prune(board.turn, keep=2)
     
         move.deeper(board)
     
         bscore, bmove = move.prop(player=board.turn)
-        print "SPLORT BEST move {}, score {}".format(bmove, bscore)
+        #print "SPLORT BEST move {}, score {}".format(bmove, bscore)
+        #move.print_greedy_line(board)
     
         return bscore, bmove
     
@@ -241,4 +232,10 @@ class Player(object):
         score, move = self.best_move(board)
     
         return move, score
+
+def get_move(board):
+    playa = Player(beta=0.00101, pin=0.001, attack=0.2, aggro=0.3)
+
+    move, score = playa.get_move(board)
+    return move
     
