@@ -183,14 +183,15 @@ class Player(object):
     def board_score(self, b):
         mat = self.material_score(b, self.beta)
         attack = self.attack_score(b)
-        if b.fullmove_number > 1:
-            piece = b.piece_at(b.peek().to_square)
-            if piece:
-                pscore = self.piece_move_score[piece.piece_type]
-            else:
-                pscore = 0
-        else:
-            pscore = 0
+        pscore = 0
+        #if b.fullmove_number > 1:
+        #    piece = b.piece_at(b.peek().to_square)
+        #    if piece:
+        #        pscore = self.piece_move_score[piece.piece_type]
+        #    else:
+        #        pscore = 0
+        #else:
+        #    pscore = 0
     
         return mat \
                 + self.attack_par * attack \
