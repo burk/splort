@@ -10,6 +10,7 @@
 <body>
 
 <div id="board" style="width: 400px"></div>
+<div id="status"><p>Your move.</p></div>
 
 <script src="js/json3.min.js"></script>
 <script src="js/jquery-1.11.3.min.js"></script>
@@ -84,6 +85,7 @@ var init = function() {
   
   var onSnapEnd = function() {
     board.position(game.fen());
+    $("#status > p").html("Black to move.");
     $.ajax('move', {
       data : JSON.stringify({ fen: game.fen()}),
       contentType : 'application/json',
@@ -91,6 +93,7 @@ var init = function() {
     }).done(function(data) {
       board.position(data.fen);
       game.load(data.fen);
+      $("#status > p").html(data.status);
     });
   };
   
