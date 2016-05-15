@@ -5,6 +5,8 @@ import splort
 import chess
 
 app = Flask(__name__, static_url_path="/static")
+app.config.from_object(__name__)
+app.debug = False
 
 @app.route('/js/<path:path>')
 def send_js(path):
@@ -68,5 +70,5 @@ def move():
     return jsonify(**{ "fen": board.fen(), "status": status })
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run()
 
